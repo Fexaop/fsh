@@ -1,0 +1,80 @@
+{
+  "storage_root": "storage",
+  "hls": {
+    "segment_duration_seconds": 60,
+    "playlist_size": 0,
+    "delete_old_segments": false,
+    "flags": [
+      "independent_segments",
+      "program_date_time"
+    ],
+    "segment_type": "fmp4",
+    "segment_filename_pattern": "seg_%06d.m4s",
+    "playlist_filename": "index.m3u8"
+  },
+  "encoder": {
+    "codec": "libsvtav1",
+    "preset": 13,
+    "crf": 48,
+    "gop_seconds": 2,
+    "threads": 0,
+    "pixel_format": "yuv420p",
+    "frame_rate": 25,
+    "max_b_frames": 0,
+    "options": {
+      "tune": "0"
+    },
+    "realtime": {
+      "mode": "allow_drop",
+      "lag_warn_ms": 500,
+      "lag_recover_ms": 2000,
+      "auto_tune": true,
+      "queue_size": 64
+    }
+  },
+  "auth": {
+    "middleware_enabled": false
+  },
+  "cameras": [
+    {
+      "name": "cam1",
+      "rtsp_url": "rtsp://localhost:8554/cam1",
+      "enabled": true
+    },
+    {
+      "name": "cam2",
+      "rtsp_url": "rtsp://localhost:8554/cam2",
+      "enabled": false
+    },
+    {
+      "name": "cam3",
+      "rtsp_url": "rtsp://localhost:8554/cam3",
+      "enabled": false
+    },
+    {
+      "name": "cam4",
+      "rtsp_url": "rtsp://localhost:8554/cam4",
+      "enabled": false
+    },
+    {
+      "name": "cam5",
+      "rtsp_url": "rtsp://localhost:8554/cam5",
+      "enabled": false
+    },
+    {
+      "name": "cam6",
+      "rtsp_url": "rtsp://localhost:8554/cam6",
+      "enabled": false
+    },
+    {
+      "name": "cam7",
+      "rtsp_url": "rtsp://localhost:8554/cam7",
+      "enabled": false
+    },
+    {
+      "name": "cam8",
+      "rtsp_url": "rtsp://localhost:8554/cam8",
+      "enabled": false
+    }
+  ]
+}
