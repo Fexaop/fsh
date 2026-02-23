@@ -142,7 +142,7 @@ func googleAuthCallback(c *gin.Context) {
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
-	c.String(http.StatusOK, "<h2>Google login successful.</h2><p>You can now return to the VMS app.</p>")
+	c.String(http.StatusOK, "<h2>Google login successful.</h2><p>You can now return to the fsh app.</p>")
 }
 
 func googleSessionByState(c *gin.Context) {
