@@ -27,12 +27,13 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-	
+
 	router := gin.Default()
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Session-Token, Authorization, Accept")
+		c.Writer.Header().Set("Access-Control-Max-Age", "600")
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return
@@ -55,7 +56,6 @@ func main() {
 	}
 	router.Use(routes.AuthRequiredMiddleware(cfg.Auth.MiddlewareEnabled))
 
-
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"message": "200 OK",
@@ -64,7 +64,7 @@ func main() {
 	h := ws.NewHub()
 	go h.Run()
 	routes.RegisterWSRoutes(router, h)
-	//register routes 
+	//register routes
 	routes.RegisterAuthRoutes(router)
 	zlog.Info().Msgf("Server is running on port %s", port)
 	if err := router.Run(":" + port); err != nil {
@@ -73,5 +73,3 @@ func main() {
 
 	fmt.Printf("Server started on port %s\n", port)
 }
-
-
