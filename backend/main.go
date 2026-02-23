@@ -7,6 +7,7 @@ import (
 	"github.com/Fexaop/fsh/backend/appconfig"
 	"github.com/Fexaop/fsh/backend/query"
 	"github.com/Fexaop/fsh/backend/routes"
+	"github.com/Fexaop/fsh/backend/ws"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	zerolog "github.com/rs/zerolog"
@@ -60,6 +61,9 @@ func main() {
 			"message": "200 OK",
 		})
 	})
+	h := ws.NewHub()
+	go h.Run()
+	routes.RegisterWSRoutes(router, h)
 	//register routes 
 	routes.RegisterAuthRoutes(router)
 	zlog.Info().Msgf("Server is running on port %s", port)
