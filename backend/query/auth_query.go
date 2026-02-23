@@ -45,7 +45,7 @@ type OAuthSession struct {
 
 func InitDB(path string) error {
 	if path == "" {
-		path = "vms_auth.db"
+		path = "storage.db"
 	}
 
 	database, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
