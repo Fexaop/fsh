@@ -41,7 +41,6 @@ type authSessionResponse struct {
 func RegisterAuthRoutes(router *gin.Engine) {
 	router.GET("/auth/google/start", startGoogleAuth)
 	router.GET("/auth/google/callback", googleAuthCallback)
-	// Support legacy or env-provided redirect URLs that point to /callback
 	router.GET("/callback", googleAuthCallback)
 	router.GET("/auth/google/session", googleSessionByState)
 	router.GET("/auth/me", getCurrentUser)
