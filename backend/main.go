@@ -31,7 +31,7 @@ func main() {
 	router := gin.Default()
 	router.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Session-Token, Authorization, Accept")
 		c.Writer.Header().Set("Access-Control-Max-Age", "600")
 		if c.Request.Method == "OPTIONS" {
@@ -66,6 +66,7 @@ func main() {
 	routes.RegisterWSRoutes(router, h)
 	//register routes
 	routes.RegisterAuthRoutes(router)
+	routes.RegisterFamilyRoutes(router)
 	zlog.Info().Msgf("Server is running on port %s", port)
 	if err := router.Run(":" + port); err != nil {
 		zlog.Fatal().Err(err).Msg("Failed to run server")

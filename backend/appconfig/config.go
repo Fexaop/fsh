@@ -12,13 +12,12 @@ const (
 )
 
 type Config struct {
-	Auth        AuthConfig    `json:"auth"`
+	Auth AuthConfig `json:"auth"`
 }
 
 type AuthConfig struct {
 	MiddlewareEnabled bool `json:"middleware_enabled"`
 }
-
 
 func LoadConfig(path string) (*Config, error) {
 	b, err := os.ReadFile(path)
@@ -41,5 +40,3 @@ func DefaultConfig() Config {
 		},
 	}
 }
-
-

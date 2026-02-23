@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"strings"
 	"time"
 
 	"gorm.io/driver/sqlite"
@@ -43,6 +44,16 @@ type OAuthSession struct {
 	UpdatedAt          time.Time
 }
 
+type FamilyMember struct {
+	ID                uint   `gorm:"primaryKey"`
+	OwnerCredentialID uint   `gorm:"index:idx_owner_member_email,priority:1;not null"`
+	Name              string `gorm:"size:256;not null"`
+	Email             string `gorm:"size:256;index:idx_owner_member_email,priority:2,unique;not null"`
+	Relation          string `gorm:"size:128;not null"`
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
 func InitDB(path string) error {
 	if path == "" {
 		path = "storage.db"
@@ -53,7 +64,7 @@ func InitDB(path string) error {
 		return err
 	}
 
-	if err := database.AutoMigrate(&GoogleCredential{}, &OAuthState{}, &OAuthSession{}); err != nil {
+	if err := database.AutoMigrate(&GoogleCredential{}, &OAuthState{}, &OAuthSession{}, &FamilyMember{}); err != nil {
 		return err
 	}
 
@@ -217,4 +228,73 @@ func GenerateSecureToken(byteLen int) (string, error) {
 	}
 
 	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+func ListFamilyMembers(ownerCredentialID uint) ([]FamilyMember, error) {
+	if db == nil {
+		return nil, errors.New("database not initialized")
+	}
+
+	var members []FamilyMember
+	if err := db.Where("owner_credential_id = ?", ownerCredentialID).Order("name ASC").Find(&members).Error; err != nil {
+		return nil, err
+	}
+
+	return members, nil
+}
+
+func CreateFamilyMember(ownerCredentialID uint, name, email, relation string) (*FamilyMember, error) {
+	if db == nil {
+		return nil, errors.New("database not initialized")
+	}
+
+	member := FamilyMember{
+		OwnerCredentialID: ownerCredentialID,
+		Name:              strings.TrimSpace(name),
+		Email:             strings.ToLower(strings.TrimSpace(email)),
+		Relation:          strings.TrimSpace(relation),
+	}
+
+	if err := db.Create(&member).Error; err != nil {
+		return nil, err
+	}
+
+	return &member, nil
+}
+
+func UpdateFamilyMember(ownerCredentialID, memberID uint, name, email, relation string) (*FamilyMember, error) {
+	if db == nil {
+		return nil, errors.New("database not initialized")
+	}
+
+	var member FamilyMember
+	if err := db.Where("id = ? AND owner_credential_id = ?", memberID, ownerCredentialID).First(&member).Error; err != nil {
+		return nil, err
+	}
+
+	member.Name = strings.TrimSpace(name)
+	member.Email = strings.ToLower(strings.TrimSpace(email))
+	member.Relation = strings.TrimSpace(relation)
+
+	if err := db.Save(&member).Error; err != nil {
+		return nil, err
+	}
+
+	return &member, nil
+}
+
+func DeleteFamilyMember(ownerCredentialID, memberID uint) error {
+	if db == nil {
+		return errors.New("database not initialized")
+	}
+
+	result := db.Where("id = ? AND owner_credential_id = ?", memberID, ownerCredentialID).Delete(&FamilyMember{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+
+	return nil
 }

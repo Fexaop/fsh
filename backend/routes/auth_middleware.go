@@ -16,6 +16,7 @@ var publicAuthPaths = map[string]struct{}{
 	"/callback":             {},
 	"/auth/google/session":  {},
 	"/auth/logout":          {},
+	"/ws":                   {},
 }
 
 func AuthRequiredMiddleware(enabled bool) gin.HandlerFunc {
