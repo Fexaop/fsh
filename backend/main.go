@@ -67,6 +67,7 @@ func main() {
 	//register routes
 	routes.RegisterAuthRoutes(router)
 	routes.RegisterFamilyRoutes(router)
+	routes.RegisterInvitationRoutes(router)
 	zlog.Info().Msgf("Server is running on port %s", port)
 	if err := router.Run(":" + port); err != nil {
 		zlog.Fatal().Err(err).Msg("Failed to run server")

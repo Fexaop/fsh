@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { FamilyLiveMap } from "@/components/family-live-map";
@@ -96,21 +96,10 @@ export default function DashboardPage() {
   const [isFamilyLoading, setIsFamilyLoading] = useState(false);
   const [familyError, setFamilyError] = useState<string | null>(null);
 
-  const [editingMemberId, setEditingMemberId] = useState<number | null>(null);
-  const [memberName, setMemberName] = useState("");
-  const [memberEmail, setMemberEmail] = useState("");
-  const [memberRelation, setMemberRelation] = useState("");
-  const [memberFormError, setMemberFormError] = useState<string | null>(null);
-  const [isSavingMember, setIsSavingMember] = useState(false);
-
   const [socketState, setSocketState] = useState<"connecting" | "connected" | "disconnected" | "error">("disconnected");
   const [geoError, setGeoError] = useState<string | null>(null);
-  const [wsGeneration, setWsGeneration] = useState(0);
   const geoRetryTimeoutRef = useRef<number | null>(null);
-  const socketRef = useRef<WebSocket | null>(null);
-  const [manualLatitude, setManualLatitude] = useState("");
-  const [manualLongitude, setManualLongitude] = useState("");
-  const [manualLocationError, setManualLocationError] = useState<string | null>(null);
+
   const [locationsByMember, setLocationsByMember] = useState<
     Record<string, MemberLocation>
   >({});
@@ -202,6 +191,14 @@ export default function DashboardPage() {
     }
 
     void loadFamilyMembers(sessionToken);
+
+    const refreshInterval = window.setInterval(() => {
+      void loadFamilyMembers(sessionToken);
+    }, 20000);
+
+    return () => {
+      window.clearInterval(refreshInterval);
+    };
   }, [loadFamilyMembers, sessionToken]);
 
   const handleIncomingLocationMessage = useCallback((rawData: string) => {
@@ -248,6 +245,15 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const familySocketKey = useMemo(
+    () =>
+      familyMembers
+        .map((member) => normalizeMemberId(member.email))
+        .sort()
+        .join("|"),
+    [familyMembers],
+  );
+
   useEffect(() => {
     if (!sessionToken) {
       return;
@@ -256,7 +262,6 @@ export default function DashboardPage() {
     const wsBaseURL = toWebSocketBaseURL(BACKEND_BASE_URL);
     const wsURL = `${wsBaseURL}/ws?sessionToken=${encodeURIComponent(sessionToken)}`;
     const socket = new WebSocket(wsURL);
-    socketRef.current = socket;
     let geoWatchId: number | null = null;
     let usingFallbackWatch = false;
 
@@ -350,7 +355,6 @@ export default function DashboardPage() {
     socket.onopen = () => {
       setSocketState("connected");
       setGeoError(null);
-      setManualLocationError(null);
 
       if (!navigator.geolocation) {
         setGeoError("Geolocation is not supported in this browser.");
@@ -398,118 +402,9 @@ export default function DashboardPage() {
         navigator.geolocation.clearWatch(geoWatchId);
       }
       clearGeoRetryTimeout();
-      if (socketRef.current === socket) {
-        socketRef.current = null;
-      }
       socket.close();
     };
-  }, [handleIncomingLocationMessage, sessionToken, wsGeneration]);
-
-  const resetMemberForm = () => {
-    setEditingMemberId(null);
-    setMemberName("");
-    setMemberEmail("");
-    setMemberRelation("");
-    setMemberFormError(null);
-  };
-
-  const handleMemberSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!sessionToken) {
-      return;
-    }
-
-    setIsSavingMember(true);
-    setMemberFormError(null);
-
-    const payload = {
-      name: memberName.trim(),
-      email: memberEmail.trim().toLowerCase(),
-      relation: memberRelation.trim(),
-    };
-
-    if (!payload.name || !payload.email) {
-      setMemberFormError("Name and email are required.");
-      setIsSavingMember(false);
-      return;
-    }
-
-    const method = editingMemberId === null ? "POST" : "PUT";
-    const endpoint =
-      editingMemberId === null
-        ? `${BACKEND_BASE_URL}/family/members`
-        : `${BACKEND_BASE_URL}/family/members/${editingMemberId}`;
-
-    try {
-      const response = await fetch(endpoint, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          "X-Session-Token": sessionToken,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        let errorMessage = "Failed to save family member.";
-        try {
-          const body = (await response.json()) as { error?: string };
-          if (body.error) {
-            errorMessage = body.error;
-          }
-        } catch {
-          // noop
-        }
-        throw new Error(errorMessage);
-      }
-
-      resetMemberForm();
-      await loadFamilyMembers(sessionToken);
-      setWsGeneration((value) => value + 1);
-    } catch (error) {
-      setMemberFormError(
-        error instanceof Error ? error.message : "Failed to save family member.",
-      );
-    } finally {
-      setIsSavingMember(false);
-    }
-  };
-
-  const handleEditMember = (member: FamilyMember) => {
-    setEditingMemberId(member.id);
-    setMemberName(member.name);
-    setMemberEmail(member.email);
-    setMemberRelation(member.relation);
-    setMemberFormError(null);
-  };
-
-  const handleDeleteMember = async (memberId: number) => {
-    if (!sessionToken) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`${BACKEND_BASE_URL}/family/members/${memberId}`, {
-        method: "DELETE",
-        headers: {
-          "X-Session-Token": sessionToken,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete family member.");
-      }
-
-      await loadFamilyMembers(sessionToken);
-      setWsGeneration((value) => value + 1);
-    } catch (error) {
-      setFamilyError(
-        error instanceof Error
-          ? error.message
-          : "Failed to delete family member.",
-      );
-    }
-  };
+  }, [familySocketKey, handleIncomingLocationMessage, sessionToken]);
 
   const mapMembers = useMemo(() => {
     const combined = [...familyMembers];
@@ -529,6 +424,10 @@ export default function DashboardPage() {
 
     return combined;
   }, [familyMembers, user?.email, user?.name]);
+
+  const handleOpenInvitations = () => {
+    router.push("/dashboard/invitations");
+  };
 
   const handleLogout = async () => {
     const token = getSessionTokenFromCookieString(document.cookie);
@@ -558,40 +457,6 @@ export default function DashboardPage() {
     return `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)} • ${formattedTime}`;
   };
 
-  const handleManualLocationSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setManualLocationError(null);
-
-    const latitude = Number.parseFloat(manualLatitude.trim());
-    const longitude = Number.parseFloat(manualLongitude.trim());
-    if (
-      !Number.isFinite(latitude) ||
-      !Number.isFinite(longitude) ||
-      latitude < -90 ||
-      latitude > 90 ||
-      longitude < -180 ||
-      longitude > 180
-    ) {
-      setManualLocationError("Enter valid coordinates (lat: -90..90, lon: -180..180).");
-      return;
-    }
-
-    const socket = socketRef.current;
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-      setManualLocationError("Live socket is not connected yet.");
-      return;
-    }
-
-    socket.send(
-      JSON.stringify({
-        type: "location_update",
-        latitude,
-        longitude,
-      }),
-    );
-    setGeoError(null);
-  };
-
   return (
     <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950">
       <header className="sticky top-0 z-50 border-b border-black/10 bg-white/65 backdrop-blur-md dark:border-white/10 dark:bg-black/45">
@@ -599,9 +464,14 @@ export default function DashboardPage() {
           <span className="text-sm font-semibold tracking-wide text-zinc-900 dark:text-zinc-100">
             FSH Dashboard
           </span>
-          <Button variant="outline" onClick={handleLogout}>
-            Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleOpenInvitations}>
+              Invitations
+            </Button>
+            <Button variant="outline" onClick={handleLogout}>
+              Logout
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -632,9 +502,14 @@ export default function DashboardPage() {
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
                 Family Members
               </h2>
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                {isFamilyLoading ? "Refreshing..." : `${familyMembers.length} members`}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                  {isFamilyLoading ? "Refreshing..." : `${familyMembers.length} members`}
+                </span>
+                <Button variant="outline" onClick={handleOpenInvitations}>
+                  Manage
+                </Button>
+              </div>
             </div>
 
             {familyError ? (
@@ -643,56 +518,9 @@ export default function DashboardPage() {
               </p>
             ) : null}
 
-            <form onSubmit={handleMemberSubmit} className="space-y-3 rounded-lg border border-black/10 p-4">
-              <h3 className="text-sm font-medium text-zinc-800">
-                {editingMemberId === null ? "Add family member" : "Edit family member"}
-              </h3>
-
-              <input
-                type="text"
-                value={memberName}
-                onChange={(event) => setMemberName(event.target.value)}
-                placeholder="Name"
-                className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950"
-              />
-              <input
-                type="email"
-                value={memberEmail}
-                onChange={(event) => setMemberEmail(event.target.value)}
-                placeholder="Email"
-                className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950"
-              />
-              <input
-                type="text"
-                value={memberRelation}
-                onChange={(event) => setMemberRelation(event.target.value)}
-                placeholder="Relation (e.g. Father, Sister)"
-                className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950"
-              />
-
-              {memberFormError ? (
-                <p className="text-sm text-red-600">{memberFormError}</p>
-              ) : null}
-
-              <div className="flex gap-2">
-                <Button type="submit" disabled={isSavingMember}>
-                  {isSavingMember
-                    ? "Saving..."
-                    : editingMemberId === null
-                      ? "Add Member"
-                      : "Update Member"}
-                </Button>
-                {editingMemberId !== null ? (
-                  <Button type="button" variant="outline" onClick={resetMemberForm}>
-                    Cancel
-                  </Button>
-                ) : null}
-              </div>
-            </form>
-
             {familyMembers.length === 0 ? (
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                No family members yet. Add one to start tracking live location.
+                No accepted family members yet. Create an invite in Invitations and ask them to accept using the invite ID.
               </p>
             ) : (
               <ul className="space-y-2">
@@ -701,35 +529,15 @@ export default function DashboardPage() {
                     key={member.id}
                     className="rounded-lg border border-black/10 p-3 dark:border-white/10"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                          {member.name}
-                        </p>
-                        <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                          {member.relation} • {member.email}
-                        </p>
-                        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                          {formatMemberLocation(member.email)}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => handleEditMember(member)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => void handleDeleteMember(member.id)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
+                    <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                      {member.name}
+                    </p>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                      {member.relation} • {member.email}
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                      {formatMemberLocation(member.email)}
+                    </p>
                   </li>
                 ))}
               </ul>
@@ -758,35 +566,6 @@ export default function DashboardPage() {
               <p className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-700">
                 {geoError}
               </p>
-            ) : null}
-
-            {geoError ? (
-              <form
-                onSubmit={handleManualLocationSubmit}
-                className="mb-4 grid gap-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 md:grid-cols-[1fr_1fr_auto]"
-              >
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={manualLatitude}
-                  onChange={(event) => setManualLatitude(event.target.value)}
-                  placeholder="Latitude (e.g. 37.7749)"
-                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
-                />
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={manualLongitude}
-                  onChange={(event) => setManualLongitude(event.target.value)}
-                  placeholder="Longitude (e.g. -122.4194)"
-                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
-                />
-                <Button type="submit">Share Manual Location</Button>
-
-                {manualLocationError ? (
-                  <p className="text-sm text-red-600 md:col-span-3">{manualLocationError}</p>
-                ) : null}
-              </form>
             ) : null}
 
             <FamilyLiveMap

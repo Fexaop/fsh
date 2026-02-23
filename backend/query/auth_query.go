@@ -54,6 +54,37 @@ type FamilyMember struct {
 	UpdatedAt         time.Time
 }
 
+type FamilyInvitation struct {
+	ID                  uint      `gorm:"primaryKey"`
+	InviteID            string    `gorm:"size:32;uniqueIndex;not null"`
+	InviterCredentialID uint      `gorm:"index;not null"`
+	InviterEmail        string    `gorm:"size:256;index;not null"`
+	InviterName         string    `gorm:"size:256"`
+	Relation            string    `gorm:"size:128;not null"`
+	Status              string    `gorm:"size:32;index;not null"`
+	InviteeCredentialID *uint     `gorm:"index"`
+	InviteeEmail        string    `gorm:"size:256;index"`
+	ExpiresAt           time.Time `gorm:"index;not null"`
+	RespondedAt         *time.Time
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+}
+
+const (
+	FamilyInvitationStatusPending  = "pending"
+	FamilyInvitationStatusAccepted = "accepted"
+	FamilyInvitationStatusDeclined = "declined"
+)
+
+const inviteIDAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+var (
+	ErrInvalidInvitationAction = errors.New("invalid invitation action")
+	ErrInvitationNotPending    = errors.New("invitation is not pending")
+	ErrInvitationExpired       = errors.New("invitation has expired")
+	ErrInvitationSelfResponse  = errors.New("cannot respond to own invitation")
+)
+
 func InitDB(path string) error {
 	if path == "" {
 		path = "storage.db"
@@ -64,7 +95,7 @@ func InitDB(path string) error {
 		return err
 	}
 
-	if err := database.AutoMigrate(&GoogleCredential{}, &OAuthState{}, &OAuthSession{}, &FamilyMember{}); err != nil {
+	if err := database.AutoMigrate(&GoogleCredential{}, &OAuthState{}, &OAuthSession{}, &FamilyMember{}, &FamilyInvitation{}); err != nil {
 		return err
 	}
 
@@ -297,4 +328,213 @@ func DeleteFamilyMember(ownerCredentialID, memberID uint) error {
 	}
 
 	return nil
+}
+
+func CreateFamilyInvitation(inviter *GoogleCredential, relation string, ttl time.Duration) (*FamilyInvitation, error) {
+	if db == nil {
+		return nil, errors.New("database not initialized")
+	}
+	if inviter == nil {
+		return nil, errors.New("inviter is required")
+	}
+
+	relation = strings.TrimSpace(relation)
+	if relation == "" {
+		relation = "Family"
+	}
+
+	for range 8 {
+		inviteID, err := GenerateInviteID(10)
+		if err != nil {
+			return nil, err
+		}
+
+		invitation := FamilyInvitation{
+			InviteID:            inviteID,
+			InviterCredentialID: inviter.ID,
+			InviterEmail:        strings.ToLower(strings.TrimSpace(inviter.Email)),
+			InviterName:         strings.TrimSpace(inviter.Name),
+			Relation:            relation,
+			Status:              FamilyInvitationStatusPending,
+			ExpiresAt:           time.Now().Add(ttl),
+		}
+
+		if err := db.Create(&invitation).Error; err != nil {
+			if isUniqueConstraintError(err) {
+				continue
+			}
+			return nil, err
+		}
+
+		return &invitation, nil
+	}
+
+	return nil, errors.New("failed to generate unique invitation id")
+}
+
+func ListOutgoingFamilyInvitations(inviterCredentialID uint) ([]FamilyInvitation, error) {
+	if db == nil {
+		return nil, errors.New("database not initialized")
+	}
+
+	var invitations []FamilyInvitation
+	if err := db.Where("inviter_credential_id = ?", inviterCredentialID).
+		Order("created_at DESC").
+		Find(&invitations).Error; err != nil {
+		return nil, err
+	}
+
+	return invitations, nil
+}
+
+func GetFamilyInvitationByInviteID(inviteID string) (*FamilyInvitation, error) {
+	if db == nil {
+		return nil, errors.New("database not initialized")
+	}
+
+	normalizedInviteID := strings.ToUpper(strings.TrimSpace(inviteID))
+	var invitation FamilyInvitation
+	if err := db.First(&invitation, "invite_id = ?", normalizedInviteID).Error; err != nil {
+		return nil, err
+	}
+
+	return &invitation, nil
+}
+
+func RespondToFamilyInvitation(inviteID string, invitee *GoogleCredential, action string) (*FamilyInvitation, error) {
+	if db == nil {
+		return nil, errors.New("database not initialized")
+	}
+	if invitee == nil {
+		return nil, errors.New("invitee is required")
+	}
+
+	action = strings.ToLower(strings.TrimSpace(action))
+	if action != "accept" && action != "decline" {
+		return nil, ErrInvalidInvitationAction
+	}
+
+	normalizedInviteID := strings.ToUpper(strings.TrimSpace(inviteID))
+	var updatedInvitation FamilyInvitation
+	err := db.Transaction(func(tx *gorm.DB) error {
+		var invitation FamilyInvitation
+		if err := tx.First(&invitation, "invite_id = ?", normalizedInviteID).Error; err != nil {
+			return err
+		}
+
+		if invitation.Status != FamilyInvitationStatusPending {
+			return ErrInvitationNotPending
+		}
+		if time.Now().After(invitation.ExpiresAt) {
+			return ErrInvitationExpired
+		}
+		if invitation.InviterCredentialID == invitee.ID {
+			return ErrInvitationSelfResponse
+		}
+
+		now := time.Now()
+		invitation.InviteeCredentialID = &invitee.ID
+		invitation.InviteeEmail = strings.ToLower(strings.TrimSpace(invitee.Email))
+		invitation.RespondedAt = &now
+
+		if action == "accept" {
+			invitation.Status = FamilyInvitationStatusAccepted
+
+			if err := ensureFamilyMemberTx(
+				tx,
+				invitation.InviterCredentialID,
+				invitee.Name,
+				invitee.Email,
+				invitation.Relation,
+			); err != nil {
+				return err
+			}
+
+			inviterDisplayName := strings.TrimSpace(invitation.InviterName)
+			if inviterDisplayName == "" {
+				inviterDisplayName = invitation.InviterEmail
+			}
+			if err := ensureFamilyMemberTx(
+				tx,
+				invitee.ID,
+				inviterDisplayName,
+				invitation.InviterEmail,
+				"Family",
+			); err != nil {
+				return err
+			}
+		} else {
+			invitation.Status = FamilyInvitationStatusDeclined
+		}
+
+		if err := tx.Save(&invitation).Error; err != nil {
+			return err
+		}
+
+		updatedInvitation = invitation
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &updatedInvitation, nil
+}
+
+func GenerateInviteID(length int) (string, error) {
+	if length <= 0 {
+		return "", errors.New("invite id length must be positive")
+	}
+
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+
+	var b strings.Builder
+	b.Grow(length)
+	for _, value := range bytes {
+		b.WriteByte(inviteIDAlphabet[int(value)%len(inviteIDAlphabet)])
+	}
+
+	return b.String(), nil
+}
+
+func ensureFamilyMemberTx(tx *gorm.DB, ownerCredentialID uint, name, email, relation string) error {
+	email = strings.ToLower(strings.TrimSpace(email))
+	name = strings.TrimSpace(name)
+	relation = strings.TrimSpace(relation)
+
+	if email == "" {
+		return errors.New("family member email is required")
+	}
+	if name == "" {
+		name = email
+	}
+	if relation == "" {
+		relation = "Family"
+	}
+
+	var existing FamilyMember
+	err := tx.Where("owner_credential_id = ? AND email = ?", ownerCredentialID, email).First(&existing).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		member := FamilyMember{
+			OwnerCredentialID: ownerCredentialID,
+			Name:              name,
+			Email:             email,
+			Relation:          relation,
+		}
+		return tx.Create(&member).Error
+	}
+	if err != nil {
+		return err
+	}
+
+	existing.Name = name
+	existing.Relation = relation
+	return tx.Save(&existing).Error
+}
+
+func isUniqueConstraintError(err error) bool {
+	return strings.Contains(strings.ToLower(err.Error()), "unique constraint failed")
 }
