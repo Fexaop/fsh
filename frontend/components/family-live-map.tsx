@@ -8,6 +8,7 @@ type FamilyMember = {
   name: string;
   email: string;
   relation: string;
+  avatarUrl?: string;
 };
 
 type MemberLocation = {
@@ -53,7 +54,19 @@ type Leaflet = {
       maxZoom?: number;
     },
   ): { addTo(map: LeafletMap): void };
-  marker(position: [number, number]): LeafletMarker;
+  marker(
+    position: [number, number],
+    options?: {
+      icon?: unknown;
+    },
+  ): LeafletMarker;
+  divIcon(options: {
+    className?: string;
+    html: string;
+    iconSize?: [number, number];
+    iconAnchor?: [number, number];
+    popupAnchor?: [number, number];
+  }): unknown;
   latLngBounds(points: [number, number][]): LeafletBounds;
 };
 
@@ -67,6 +80,20 @@ function normalizeMemberId(value: string): string {
   return value.trim().toLowerCase();
 }
 
+function getInitials(value: string): string {
+  const parts = value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) {
+    return "?";
+  }
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+}
+
 function escapeHTML(value: string): string {
   return value
     .replaceAll("&", "&amp;")
@@ -74,6 +101,25 @@ function escapeHTML(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function createAvatarMarkerHTML(member: FamilyMember | undefined, memberId: string): string {
+  const displayName = member?.name?.trim() || memberId;
+  const avatarUrl = member?.avatarUrl?.trim() || "";
+  const initials = escapeHTML(getInitials(displayName));
+
+  const avatarContent = avatarUrl
+    ? `<img src="${escapeHTML(avatarUrl)}" alt="${escapeHTML(displayName)}" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+    : `<span style="font:600 12px/1 sans-serif;color:#fff;letter-spacing:0.02em;">${initials}</span>`;
+
+  return `
+    <div style="display:flex;flex-direction:column;align-items:center;transform:translateY(-2px);">
+      <div style="width:40px;height:40px;border-radius:9999px;overflow:hidden;background:#1f2937;border:2px solid #fff;box-shadow:0 6px 16px rgba(0,0,0,0.28);display:flex;align-items:center;justify-content:center;">
+        ${avatarContent}
+      </div>
+      <div style="margin-top:-1px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:10px solid #1f2937;"></div>
+    </div>
+  `;
 }
 
 export function FamilyLiveMap({
@@ -129,8 +175,16 @@ export function FamilyLiveMap({
         : location.memberId;
       const updatedAt = new Date(location.updatedAt * 1000).toLocaleTimeString();
       const escapedMarkerLabel = escapeHTML(markerLabel);
+      const iconHTML = createAvatarMarkerHTML(member, location.memberId);
+      const icon = window.L.divIcon({
+        className: "fsh-avatar-marker",
+        html: iconHTML,
+        iconSize: [42, 54],
+        iconAnchor: [21, 54],
+        popupAnchor: [0, -46],
+      });
 
-      const marker = window.L.marker([location.latitude, location.longitude])
+      const marker = window.L.marker([location.latitude, location.longitude], { icon })
         .addTo(mapRef.current)
         .bindPopup(
           `${escapedMarkerLabel}<br/>${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}<br/>Updated ${updatedAt}`,

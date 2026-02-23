@@ -17,6 +17,7 @@ type FamilyMember = {
   name: string;
   email: string;
   relation: string;
+  avatarUrl?: string;
 };
 
 type FamilyMembersResponse = {
@@ -419,11 +420,12 @@ export default function DashboardPage() {
         name: user?.name ?? "You",
         email: selfEmail,
         relation: "You",
+        avatarUrl: user?.picture,
       });
     }
 
     return combined;
-  }, [familyMembers, user?.email, user?.name]);
+  }, [familyMembers, user?.email, user?.name, user?.picture]);
 
   const handleOpenInvitations = () => {
     router.push("/dashboard/invitations");
