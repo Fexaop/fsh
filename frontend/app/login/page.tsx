@@ -1,9 +1,10 @@
 "use client";
 import { motion } from "motion/react";
-import React from "react";
-import { AuroraBackground } from "../ui/aurora-background";
 
-export function Login() {
+import { AuroraBackground } from "@/components/ui/aurora-background";
+import { Button } from "@/components/ui/button";
+
+export default function Login() {
   return (
     <AuroraBackground>
       <motion.div
@@ -12,6 +13,7 @@ export function Login() {
         transition={{
           delay: 0.3,
           duration: 0.8,
+
           ease: "easeInOut",
         }}
         className="relative flex flex-col gap-4 items-center justify-center px-4"
@@ -20,11 +22,11 @@ export function Login() {
           Find my - connect with friends.
         </div>
         <div className="font-extralight text-base md:text-4xl dark:text-neutral-200 py-4">
-          login /signup to get started.
+          login/signup to get started.
         </div>
-        <button className="bg-black dark:bg-white rounded-full w-fit text-white dark:text-black px-4 py-2">
-          Debug now
-        </button>
+        <Button>
+          Login with Google
+        </Button>
       </motion.div>
     </AuroraBackground>
   );
