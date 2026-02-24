@@ -13,6 +13,7 @@ import {
   type GoogleAuthSessionResponse,
 } from "@/lib/auth";
 import PixelBlast from "@/components/PixelBlast";
+import PillNav from "@/components/PillNav";
 type FamilyMember = {
   id: number;
   name: string;
@@ -653,10 +654,6 @@ export default function DashboardPage() {
     router.push("/dashboard/invitations");
   };
 
-  const handleOpenSettings = () => {
-    router.push("/setting");
-  };
-
   const waitForSocketOpenAndSend = useCallback(
     (socket: WebSocket, payload: string): Promise<void> =>
       new Promise((resolve, reject) => {
@@ -778,9 +775,9 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="relative min-h-screen bg-zinc-100 dark:bg-zinc-950">
+    <div className="relative min-h-screen overflow-hidden bg-zinc-100/70 dark:bg-zinc-950/70">
       {/* PixelBlast Background */}
-      <div className="fixed inset-0 -z-10 w-full h-screen">
+      <div className="pointer-events-none fixed inset-0 z-0 h-screen w-full">
         <PixelBlast
           variant="square"
           pixelSize={4}
@@ -802,43 +799,52 @@ export default function DashboardPage() {
         />
       </div>
 
-      <header className="sticky top-0 z-50 border-b border-black/10 bg-white/65 backdrop-blur-md dark:border-white/10 dark:bg-black/45">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-          <span className="text-sm font-semibold tracking-wide text-zinc-900 dark:text-zinc-100">
-            FSH Dashboard
-          </span>
-          <div className="flex items-center gap-2">
-            <Button variant="destructive" onClick={handleSOS}>
-              SOS
-            </Button>
-            <Button variant="outline" onClick={handleOpenSettings}>
-              Settings
-            </Button>
-            <Button variant="outline" onClick={handleOpenInvitations}>
-              Invitations
-            </Button>
-            <Button variant="outline" onClick={handleLogout}>
-              Logout
-            </Button>
-          </div>
-        </div>
-      </header>
+      <div className="relative z-30 h-20">
+        <PillNav
+          logo="/vercel.svg"
+          logoAlt="Company Logo"
+          items={[
+            { label: "Home", href: "/home" },
+            { label: "Dashboard", href: "/dashboard" },
+            { label: "Invitations", href: "/dashboard/invitations" },
+            { label: "Settings", href: "/setting" },
+          ]}
+          activeHref="/dashboard"
+          className="custom-nav"
+          ease="power2.easeOut"
+          baseColor="#000000"
+          pillColor="#ffffff"
+          hoveredPillTextColor="#ffffff"
+          pillTextColor="#000000"
+          theme="color"
+          initialLoadAnimation={false}
+        />
+      </div>
 
-      <main className="mx-auto max-w-6xl px-4 py-10 relative z-10">
-        <div className="rounded-xl border border-black/10 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-900">
+      <div className="relative z-20 mx-auto flex max-w-6xl justify-end gap-2 px-4 pt-2">
+        <Button variant="destructive" onClick={handleSOS}>
+          SOS
+        </Button>
+        <Button variant="outline" onClick={handleLogout}>
+          Logout
+        </Button>
+      </div>
+
+      <main className="relative z-10 mx-auto max-w-6xl px-4 pb-10 pt-6">
+        <div className="rounded-xl border border-black/10 bg-white/35 p-6 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/45">
           {isLoadingUser ? (
             <p className="text-zinc-600 dark:text-zinc-300">Loading profile...</p>
           ) : (
             <>
               <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-                Welcome to your dashboard {user.name}
+                Welcome to your dashboard {user?.name ?? ""}
               </h1>
             </>
           )}
         </div>
 
         <section className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
-          <div className="space-y-6 rounded-xl border border-black/10 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-900">
+          <div className="space-y-6 rounded-xl border border-black/10 bg-white/35 p-6 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/45">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
                 Family Members
@@ -885,7 +891,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="rounded-xl border border-black/10 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-900">
+          <div className="rounded-xl border border-black/10 bg-white/35 p-6 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900/45">
             <div className="mb-4 flex items-center justify-between gap-2">
               <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
                 Live Location Map

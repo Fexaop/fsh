@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { gsap } from 'gsap';
 import './PillNav.css';
 
@@ -20,6 +20,7 @@ export interface PillNavProps {
   pillColor?: string;
   hoveredPillTextColor?: string;
   pillTextColor?: string;
+  theme?: string;
   onMobileMenuClick?: () => void;
   initialLoadAnimation?: boolean;
 }
@@ -249,7 +250,7 @@ const PillNav: React.FC<PillNavProps> = ({
         {isRouterLink(items?.[0]?.href) ? (
           <Link
             className="pill-logo"
-            to={items[0].href}
+            href={items[0].href}
             aria-label="Home"
             onMouseEnter={handleLogoEnter}
             role="menuitem"
@@ -280,7 +281,7 @@ const PillNav: React.FC<PillNavProps> = ({
                 {isRouterLink(item.href) ? (
                   <Link
                     role="menuitem"
-                    to={item.href}
+                    href={item.href}
                     className={`pill${activeHref === item.href ? ' is-active' : ''}`}
                     aria-label={item.ariaLabel || item.label}
                     onMouseEnter={() => handleEnter(i)}
@@ -346,7 +347,7 @@ const PillNav: React.FC<PillNavProps> = ({
             <li key={item.href}>
               {isRouterLink(item.href) ? (
                 <Link
-                  to={item.href}
+                  href={item.href}
                   className={`mobile-menu-link${activeHref === item.href ? ' is-active' : ''}`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
