@@ -98,6 +98,8 @@
   cursor: pointer;
   position: relative;
   overflow: hidden;
+  border: none;
+  font-family: inherit;
 }
 
 .pill .hover-circle {
@@ -224,14 +226,17 @@
 
 .mobile-menu-popover .mobile-menu-link {
   display: block;
+  width: 100%;
   padding: 12px 16px;
   color: var(--pill-text, #fff);
   background-color: var(--pill-bg, #fff);
   text-decoration: none;
+  border: none;
   font-size: 16px;
   font-weight: 500;
   border-radius: 50px;
   transition: all 0.2s ease;
+  text-align: left;
 }
 
 .mobile-menu-popover .mobile-menu-link:hover {

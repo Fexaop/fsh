@@ -808,6 +808,7 @@ export default function DashboardPage() {
             { label: "Dashboard", href: "/dashboard" },
             { label: "Invitations", href: "/dashboard/invitations" },
             { label: "Settings", href: "/setting" },
+            { label: "Logout", href: "/logout", onClick: handleLogout },
           ]}
           activeHref="/dashboard"
           className="custom-nav"
@@ -819,15 +820,6 @@ export default function DashboardPage() {
           theme="color"
           initialLoadAnimation={false}
         />
-      </div>
-
-      <div className="relative z-20 mx-auto flex max-w-6xl justify-end gap-2 px-4 pt-2">
-        <Button variant="destructive" onClick={handleSOS}>
-          SOS
-        </Button>
-        <Button variant="outline" onClick={handleLogout}>
-          Logout
-        </Button>
       </div>
 
       <main className="relative z-10 mx-auto max-w-6xl px-4 pb-10 pt-6">
@@ -922,6 +914,14 @@ export default function DashboardPage() {
           </div>
         </section>
       </main>
+
+      <Button
+        variant="destructive"
+        onClick={handleSOS}
+        className="fixed bottom-6 right-6 z-40 rounded-full px-6 py-6 text-base shadow-lg"
+      >
+        SOS
+      </Button>
     </div>
   );
 }

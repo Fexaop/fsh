@@ -7,6 +7,7 @@ export type PillNavItem = {
   label: string;
   href: string;
   ariaLabel?: string;
+  onClick?: () => void | Promise<void>;
 };
 
 export interface PillNavProps {
@@ -277,8 +278,34 @@ const PillNav: React.FC<PillNavProps> = ({
         <div className="pill-nav-items desktop-only" ref={navItemsRef}>
           <ul className="pill-list" role="menubar">
             {items.map((item, i) => (
-              <li key={item.href} role="none">
-                {isRouterLink(item.href) ? (
+              <li key={`${item.href}-${item.label}`} role="none">
+                {item.onClick ? (
+                  <button
+                    role="menuitem"
+                    type="button"
+                    className={`pill${activeHref === item.href ? ' is-active' : ''}`}
+                    aria-label={item.ariaLabel || item.label}
+                    onMouseEnter={() => handleEnter(i)}
+                    onMouseLeave={() => handleLeave(i)}
+                    onClick={() => {
+                      void item.onClick?.();
+                    }}
+                  >
+                    <span
+                      className="hover-circle"
+                      aria-hidden="true"
+                      ref={el => {
+                        circleRefs.current[i] = el;
+                      }}
+                    />
+                    <span className="label-stack">
+                      <span className="pill-label">{item.label}</span>
+                      <span className="pill-label-hover" aria-hidden="true">
+                        {item.label}
+                      </span>
+                    </span>
+                  </button>
+                ) : isRouterLink(item.href) ? (
                   <Link
                     role="menuitem"
                     href={item.href}
@@ -344,8 +371,19 @@ const PillNav: React.FC<PillNavProps> = ({
       <div className="mobile-menu-popover mobile-only" ref={mobileMenuRef} style={cssVars}>
         <ul className="mobile-menu-list">
           {items.map(item => (
-            <li key={item.href}>
-              {isRouterLink(item.href) ? (
+            <li key={`${item.href}-${item.label}`}>
+              {item.onClick ? (
+                <button
+                  type="button"
+                  className={`mobile-menu-link${activeHref === item.href ? ' is-active' : ''}`}
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    void item.onClick?.();
+                  }}
+                >
+                  {item.label}
+                </button>
+              ) : isRouterLink(item.href) ? (
                 <Link
                   href={item.href}
                   className={`mobile-menu-link${activeHref === item.href ? ' is-active' : ''}`}
