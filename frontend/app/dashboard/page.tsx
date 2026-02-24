@@ -100,6 +100,7 @@ export default function DashboardPage() {
   const [socketState, setSocketState] = useState<"connecting" | "connected" | "disconnected" | "error">("disconnected");
   const [geoError, setGeoError] = useState<string | null>(null);
   const geoRetryTimeoutRef = useRef<number | null>(null);
+  const retryGeoRequestRef = useRef<(() => void) | null>(null);
 
   const [locationsByMember, setLocationsByMember] = useState<
     Record<string, MemberLocation>
@@ -264,7 +265,9 @@ export default function DashboardPage() {
     const wsURL = `${wsBaseURL}/ws?sessionToken=${encodeURIComponent(sessionToken)}`;
     const socket = new WebSocket(wsURL);
     let geoWatchId: number | null = null;
+    let forcePositionIntervalId: number | null = null;
     let usingFallbackWatch = false;
+    const isFirefoxLikeBrowser = /firefox|zen/i.test(navigator.userAgent);
 
     setSocketState("connecting");
 
@@ -286,6 +289,13 @@ export default function DashboardPage() {
       timeout: 30000,
       maximumAge: 60000,
     };
+
+    const positionOptionsWithFreshRead = (
+      useFallback: boolean,
+    ): PositionOptions => ({
+      ...(useFallback ? fallbackGeoOptions : primaryGeoOptions),
+      maximumAge: 0,
+    });
 
     const sendLocation = (position: GeolocationPosition) => {
       if (socket.readyState !== WebSocket.OPEN) {
@@ -337,7 +347,7 @@ export default function DashboardPage() {
         navigator.geolocation.getCurrentPosition(
           sendLocation,
           (retryError) => setGeoError(getGeolocationErrorMessage(retryError)),
-          useFallback ? fallbackGeoOptions : primaryGeoOptions,
+          positionOptionsWithFreshRead(useFallback),
         );
       }, 4000);
     };
@@ -371,12 +381,30 @@ export default function DashboardPage() {
         return;
       }
 
+      const startWithFallback = isFirefoxLikeBrowser;
+
       navigator.geolocation.getCurrentPosition(sendLocation, handleGeoError, {
-        ...primaryGeoOptions,
-        maximumAge: 0,
+        ...positionOptionsWithFreshRead(startWithFallback),
       });
 
-      startGeoWatch(false);
+      startGeoWatch(startWithFallback);
+
+      // Firefox/Zen on Linux can skip watch callbacks; poll periodically as a fallback.
+      forcePositionIntervalId = window.setInterval(() => {
+        navigator.geolocation.getCurrentPosition(
+          sendLocation,
+          handleGeoError,
+          positionOptionsWithFreshRead(usingFallbackWatch),
+        );
+      }, 15000);
+
+      retryGeoRequestRef.current = () => {
+        navigator.geolocation.getCurrentPosition(
+          sendLocation,
+          handleGeoError,
+          positionOptionsWithFreshRead(usingFallbackWatch),
+        );
+      };
     };
 
     socket.onmessage = (event) => {
@@ -395,6 +423,10 @@ export default function DashboardPage() {
       if (geoWatchId !== null) {
         navigator.geolocation.clearWatch(geoWatchId);
       }
+      if (forcePositionIntervalId !== null) {
+        window.clearInterval(forcePositionIntervalId);
+      }
+      retryGeoRequestRef.current = null;
       clearGeoRetryTimeout();
     };
 
@@ -402,6 +434,10 @@ export default function DashboardPage() {
       if (geoWatchId !== null) {
         navigator.geolocation.clearWatch(geoWatchId);
       }
+      if (forcePositionIntervalId !== null) {
+        window.clearInterval(forcePositionIntervalId);
+      }
+      retryGeoRequestRef.current = null;
       clearGeoRetryTimeout();
       socket.close();
     };
@@ -457,6 +493,11 @@ export default function DashboardPage() {
 
     const formattedTime = new Date(location.updatedAt * 1000).toLocaleTimeString();
     return `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)} • ${formattedTime}`;
+  };
+
+  const handleRetryLocationSharing = () => {
+    setGeoError(null);
+    retryGeoRequestRef.current?.();
   };
 
   return (
@@ -568,6 +609,14 @@ export default function DashboardPage() {
               <p className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-700">
                 {geoError}
               </p>
+            ) : null}
+
+            {geoError ? (
+              <div className="mb-4">
+                <Button variant="outline" onClick={handleRetryLocationSharing}>
+                  Retry Location Sharing
+                </Button>
+              </div>
             ) : null}
 
             <FamilyLiveMap
