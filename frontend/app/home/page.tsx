@@ -3,60 +3,81 @@
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import LightRays from "./LightRays";
 
 export default function Home() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-black via-neutral-900 to-black text-white">
-
-      {/* Top Bar */}
-      <div className="flex justify-between items-center p-6 sticky top-0 z-50 backdrop-blur-md bg-black/50">
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => router.push("/dashboard")}
-        >
-          Dashboard
-        </Button>
-
-        <div className="flex gap-3">
-          <Button size="sm" onClick={() => router.push("/login")}>
-            Login
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => router.push("/setting")}
-          >
-            Settings
-          </Button>
+    <div className="relative min-h-screen w-full overflow-hidden bg-gradient-to-b from-black/75 via-neutral-900/75 to-black/75 text-white">
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div style={{ width: "100%", height: "100vh", position: "relative" }}>
+          <LightRays
+            raysOrigin="top-center"
+            raysColor="#ffffff"
+            raysSpeed={1}
+            lightSpread={0.5}
+            rayLength={3}
+            followMouse={true}
+            mouseInfluence={0.1}
+            noiseAmount={0}
+            distortion={0}
+            className="custom-rays"
+            pulsating={false}
+            fadeDistance={1}
+            saturation={1}
+          />
         </div>
       </div>
 
-      {/* Hero Section */}
-      <section className="flex flex-col items-center justify-center text-center px-6 py-32">
-        <motion.h1
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="text-4xl md:text-7xl font-bold mb-6"
-        >
-          Stay Connected. Stay Safe.
-        </motion.h1>
+      <div className="relative z-10">
+        {/* Top Bar */}
+        <div className="flex justify-between items-center p-6 sticky top-0 z-50 backdrop-blur-md bg-black/50">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => router.push("/dashboard")}
+          >
+            Dashboard
+          </Button>
 
-        <p className="text-lg md:text-2xl font-light max-w-2xl mb-10 text-neutral-300">
-          Real-time location sharing that helps you stay connected with the
-          people who matter most.
-        </p>
+          <div className="flex gap-3">
+            <Button size="sm" onClick={() => router.push("/login")}>
+              Login
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => router.push("/setting")}
+            >
+              Settings
+            </Button>
+          </div>
+        </div>
 
-        <Button
-          className="w-60 text-lg"
-          onClick={() => alert("Location feature coming soon")}
-        >
-          Try Live Location
-        </Button>
-      </section>
+        {/* Hero Section */}
+        <section className="flex flex-col items-center justify-center text-center px-6 py-32">
+          <motion.h1
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-4xl md:text-7xl font-bold mb-6"
+          >
+            Stay Connected. Stay Safe.
+          </motion.h1>
+
+          <p className="text-lg md:text-2xl font-light max-w-2xl mb-10 text-neutral-300">
+            Real-time location sharing that helps you stay connected with the
+            people who matter most.
+          </p>
+
+          <Button
+            className="w-60 text-lg"
+            onClick={() => alert("Location feature coming soon")}
+          >
+            Try Live Location
+          </Button>
+        </section>
 
       {/* Benefits Section */}
       <section className="px-6 py-24 max-w-6xl mx-auto grid md:grid-cols-3 gap-10 text-center">
@@ -164,43 +185,44 @@ export default function Home() {
         </p>
       </section>
 
-      {/* FAQ Section */}
-      <section className="px-6 py-24 max-w-4xl mx-auto">
-        <h2 className="text-3xl md:text-5xl font-bold mb-12 text-center">
-          Frequently Asked Questions
-        </h2>
+        {/* FAQ Section */}
+        <section className="px-6 py-24 max-w-4xl mx-auto">
+          <h2 className="text-3xl md:text-5xl font-bold mb-12 text-center">
+            Frequently Asked Questions
+          </h2>
 
-        <div className="space-y-8">
-          <div>
-            <h3 className="text-xl font-semibold mb-2">
-              Does this track people without permission?
-            </h3>
-            <p className="text-neutral-400">
-              No. Location sharing requires mutual consent. Users control who
-              can see their location.
-            </p>
-          </div>
+          <div className="space-y-8">
+            <div>
+              <h3 className="text-xl font-semibold mb-2">
+                Does this track people without permission?
+              </h3>
+              <p className="text-neutral-400">
+                No. Location sharing requires mutual consent. Users control who
+                can see their location.
+              </p>
+            </div>
 
-          <div>
-            <h3 className="text-xl font-semibold mb-2">
-              Is location sharing real-time?
-            </h3>
-            <p className="text-neutral-400">
-              Yes. Locations update dynamically to give you accurate live
-              tracking.
-            </p>
-          </div>
+            <div>
+              <h3 className="text-xl font-semibold mb-2">
+                Is location sharing real-time?
+              </h3>
+              <p className="text-neutral-400">
+                Yes. Locations update dynamically to give you accurate live
+                tracking.
+              </p>
+            </div>
 
-          <div>
-            <h3 className="text-xl font-semibold mb-2">
-              Can I turn off location anytime?
-            </h3>
-            <p className="text-neutral-400">
-              Absolutely. You are always in control of your privacy settings.
-            </p>
+            <div>
+              <h3 className="text-xl font-semibold mb-2">
+                Can I turn off location anytime?
+              </h3>
+              <p className="text-neutral-400">
+                Absolutely. You are always in control of your privacy settings.
+              </p>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }
