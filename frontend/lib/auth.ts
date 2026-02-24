@@ -1,5 +1,7 @@
-export const SESSION_TOKEN_COOKIE = "fsh_session_token";
-export const SESSION_COOKIE_MAX_AGE = 30 * 24 * 60 * 60;
+import {
+  SESSION_COOKIE_MAX_AGE,
+  SESSION_TOKEN_COOKIE,
+} from "@/lib/auth-constants";
 
 export const BACKEND_BASE_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8080";

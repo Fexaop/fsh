@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { SESSION_TOKEN_COOKIE } from "@/lib/auth";
+import { SESSION_TOKEN_COOKIE } from "@/lib/auth-constants";
 
 export default async function Home() {
   const cookieStore = await cookies();
