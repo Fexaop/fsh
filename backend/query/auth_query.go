@@ -252,6 +252,26 @@ func GetGoogleCredentialByID(id uint) (*GoogleCredential, error) {
 	return &credential, nil
 }
 
+func UpdateGoogleCredentialProfile(id uint, name, picture string) (*GoogleCredential, error) {
+	if db == nil {
+		return nil, errors.New("database not initialized")
+	}
+
+	var credential GoogleCredential
+	if err := db.First(&credential, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+
+	credential.Name = strings.TrimSpace(name)
+	credential.Picture = strings.TrimSpace(picture)
+
+	if err := db.Save(&credential).Error; err != nil {
+		return nil, err
+	}
+
+	return &credential, nil
+}
+
 func GenerateSecureToken(byteLen int) (string, error) {
 	b := make([]byte, byteLen)
 	if _, err := rand.Read(b); err != nil {

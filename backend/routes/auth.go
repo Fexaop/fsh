@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Fexaop/fsh/backend/query"
@@ -38,12 +39,18 @@ type authSessionResponse struct {
 	ExpiresAt    int64  `json:"expiresAt,omitempty"`
 }
 
+type updateProfilePayload struct {
+	Name    *string `json:"name"`
+	Picture *string `json:"picture"`
+}
+
 func RegisterAuthRoutes(router *gin.Engine) {
 	router.GET("/auth/google/start", startGoogleAuth)
 	router.GET("/auth/google/callback", googleAuthCallback)
 	router.GET("/callback", googleAuthCallback)
 	router.GET("/auth/google/session", googleSessionByState)
 	router.GET("/auth/me", getCurrentUser)
+	router.PUT("/auth/me", updateCurrentUserProfile)
 	router.POST("/auth/logout", logoutSession)
 }
 
@@ -239,6 +246,55 @@ func getCurrentUser(c *gin.Context) {
 		Name:         credential.Name,
 		Picture:      credential.Picture,
 		ExpiresAt:    session.ExpiresAt.Unix(),
+	})
+}
+
+func updateCurrentUserProfile(c *gin.Context) {
+	identity, status, errMessage := resolveSessionIdentity(c.GetHeader("X-Session-Token"))
+	if identity == nil {
+		c.JSON(status, gin.H{"error": errMessage})
+		return
+	}
+
+	var payload updateProfilePayload
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	if payload.Name == nil && payload.Picture == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name or picture is required"})
+		return
+	}
+
+	nextName := identity.credential.Name
+	if payload.Name != nil {
+		nextName = strings.TrimSpace(*payload.Name)
+		if nextName == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "name cannot be empty"})
+			return
+		}
+	}
+
+	nextPicture := identity.credential.Picture
+	if payload.Picture != nil {
+		nextPicture = strings.TrimSpace(*payload.Picture)
+	}
+
+	credential, err := query.UpdateGoogleCredentialProfile(identity.credential.ID, nextName, nextPicture)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to update user profile")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update user profile"})
+		return
+	}
+
+	c.JSON(http.StatusOK, authSessionResponse{
+		Status:       "authenticated",
+		SessionToken: identity.session.SessionToken,
+		Email:        credential.Email,
+		Name:         credential.Name,
+		Picture:      credential.Picture,
+		ExpiresAt:    identity.session.ExpiresAt.Unix(),
 	})
 }
 

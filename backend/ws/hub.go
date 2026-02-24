@@ -11,6 +11,7 @@ type Hub struct {
 	register        chan *Client
 	unregister      chan *Client
 	locationUpdates chan MemberLocation
+	sosAlerts       chan SOSAlert
 
 	clients         map[*Client]struct{}
 	latestLocations map[string]MemberLocation
@@ -21,6 +22,7 @@ func NewHub() *Hub {
 		register:        make(chan *Client),
 		unregister:      make(chan *Client),
 		locationUpdates: make(chan MemberLocation),
+		sosAlerts:       make(chan SOSAlert),
 		clients:         make(map[*Client]struct{}),
 		latestLocations: make(map[string]MemberLocation),
 	}
@@ -42,6 +44,8 @@ func (h *Hub) Run() {
 		case location := <-h.locationUpdates:
 			h.latestLocations[location.MemberID] = location
 			h.broadcastLocationUpdate(location)
+		case alert := <-h.sosAlerts:
+			h.broadcastSOS(alert)
 		}
 	}
 }
@@ -56,6 +60,10 @@ func (h *Hub) Unregister(client *Client) {
 
 func (h *Hub) SubmitLocation(location MemberLocation) {
 	h.locationUpdates <- location
+}
+
+func (h *Hub) SubmitSOS(alert SOSAlert) {
+	h.sosAlerts <- alert
 }
 
 func (h *Hub) sendSnapshot(client *Client) {
@@ -100,6 +108,30 @@ func (h *Hub) broadcastLocationUpdate(location MemberLocation) {
 		if !client.CanView(location.MemberID) {
 			continue
 		}
+		h.sendToClient(client, payload)
+	}
+}
+
+func (h *Hub) broadcastSOS(alert SOSAlert) {
+	payload, err := json.Marshal(outboundSOSAlert{
+		Type:      messageTypeSOSAlert,
+		MemberID:  alert.MemberID,
+		Message:   alert.Message,
+		CreatedAt: alert.CreatedAt,
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("failed to marshal sos alert")
+		return
+	}
+
+	for client := range h.clients {
+		if client.memberID == alert.MemberID {
+			continue
+		}
+		if !client.CanView(alert.MemberID) {
+			continue
+		}
+
 		h.sendToClient(client, payload)
 	}
 }

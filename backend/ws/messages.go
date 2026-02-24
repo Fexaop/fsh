@@ -5,6 +5,7 @@ import "strings"
 const (
 	messageTypeLocationUpdate   = "location_update"
 	messageTypeLocationSnapshot = "location_snapshot"
+	messageTypeSOSAlert         = "sos_alert"
 )
 
 type MemberLocation struct {
@@ -14,10 +15,11 @@ type MemberLocation struct {
 	UpdatedAt int64   `json:"updatedAt"`
 }
 
-type inboundLocationMessage struct {
+type inboundClientMessage struct {
 	Type      string  `json:"type"`
 	Latitude  float64 `json:"latitude"`
 	Longitude float64 `json:"longitude"`
+	Message   string  `json:"message"`
 }
 
 type outboundLocationUpdate struct {
@@ -28,6 +30,19 @@ type outboundLocationUpdate struct {
 type outboundLocationSnapshot struct {
 	Type      string           `json:"type"`
 	Locations []MemberLocation `json:"locations"`
+}
+
+type SOSAlert struct {
+	MemberID  string `json:"memberId"`
+	Message   string `json:"message"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
+type outboundSOSAlert struct {
+	Type      string `json:"type"`
+	MemberID  string `json:"memberId"`
+	Message   string `json:"message"`
+	CreatedAt int64  `json:"createdAt"`
 }
 
 func normalizeMemberID(value string) string {

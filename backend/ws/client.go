@@ -74,27 +74,40 @@ func (c *Client) ReadPump() {
 			break
 		}
 
-		var payload inboundLocationMessage
+		var payload inboundClientMessage
 		if err := json.Unmarshal(message, &payload); err != nil {
 			log.Warn().Err(err).Str("member_id", c.memberID).Msg("Ignoring malformed WebSocket payload")
 			continue
 		}
 
-		if payload.Type != messageTypeLocationUpdate {
+		switch payload.Type {
+		case messageTypeLocationUpdate:
+			if !isValidCoordinates(payload.Latitude, payload.Longitude) {
+				log.Warn().Str("member_id", c.memberID).Msg("Ignoring invalid location coordinates")
+				continue
+			}
+
+			c.hub.SubmitLocation(MemberLocation{
+				MemberID:  c.memberID,
+				Latitude:  payload.Latitude,
+				Longitude: payload.Longitude,
+				UpdatedAt: time.Now().Unix(),
+			})
+		case messageTypeSOSAlert:
+			messageText := strings.TrimSpace(payload.Message)
+			if messageText == "" {
+				log.Warn().Str("member_id", c.memberID).Msg("Ignoring empty SOS message")
+				continue
+			}
+
+			c.hub.SubmitSOS(SOSAlert{
+				MemberID:  c.memberID,
+				Message:   messageText,
+				CreatedAt: time.Now().Unix(),
+			})
+		default:
 			continue
 		}
-
-		if !isValidCoordinates(payload.Latitude, payload.Longitude) {
-			log.Warn().Str("member_id", c.memberID).Msg("Ignoring invalid location coordinates")
-			continue
-		}
-
-		c.hub.SubmitLocation(MemberLocation{
-			MemberID:  c.memberID,
-			Latitude:  payload.Latitude,
-			Longitude: payload.Longitude,
-			UpdatedAt: time.Now().Unix(),
-		})
 	}
 }
 

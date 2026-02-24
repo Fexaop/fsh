@@ -21,6 +21,8 @@ type MemberLocation = {
 type FamilyLiveMapProps = {
   familyMembers: FamilyMember[];
   locationsByMember: Record<string, MemberLocation>;
+  geofenceCenter: MemberLocation | null;
+  geofenceRadiusMeters: number;
 };
 
 type LeafletMap = {
@@ -38,6 +40,12 @@ type LeafletMap = {
 type LeafletMarker = {
   addTo(map: LeafletMap): LeafletMarker;
   bindPopup(content: string): LeafletMarker;
+  remove(): void;
+};
+
+type LeafletCircle = {
+  addTo(map: LeafletMap): LeafletCircle;
+  bindPopup(content: string): LeafletCircle;
   remove(): void;
 };
 
@@ -67,6 +75,17 @@ type Leaflet = {
     iconAnchor?: [number, number];
     popupAnchor?: [number, number];
   }): unknown;
+  circle(
+    position: [number, number],
+    options: {
+      radius: number;
+      color?: string;
+      fillColor?: string;
+      fillOpacity?: number;
+      weight?: number;
+      dashArray?: string;
+    },
+  ): LeafletCircle;
   latLngBounds(points: [number, number][]): LeafletBounds;
 };
 
@@ -125,11 +144,14 @@ function createAvatarMarkerHTML(member: FamilyMember | undefined, memberId: stri
 export function FamilyLiveMap({
   familyMembers,
   locationsByMember,
+  geofenceCenter,
+  geofenceRadiusMeters,
 }: FamilyLiveMapProps) {
   const [leafletReady, setLeafletReady] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markersRef = useRef<LeafletMarker[]>([]);
+  const geofenceCircleRef = useRef<LeafletCircle | null>(null);
 
   const membersByEmail = useMemo(() => {
     const map = new Map<string, FamilyMember>();
@@ -165,6 +187,8 @@ export function FamilyLiveMap({
       marker.remove();
     }
     markersRef.current = [];
+    geofenceCircleRef.current?.remove();
+    geofenceCircleRef.current = null;
 
     const points: [number, number][] = [];
 
@@ -194,6 +218,21 @@ export function FamilyLiveMap({
       points.push([location.latitude, location.longitude]);
     }
 
+    if (geofenceCenter && geofenceRadiusMeters > 0) {
+      geofenceCircleRef.current = window.L
+        .circle([geofenceCenter.latitude, geofenceCenter.longitude], {
+          radius: geofenceRadiusMeters,
+          color: "#dc2626",
+          fillColor: "#ef4444",
+          fillOpacity: 0.12,
+          weight: 2,
+          dashArray: "4 4",
+        })
+        .addTo(mapRef.current)
+        .bindPopup(`Safety radius (${Math.round(geofenceRadiusMeters)}m)`);
+      points.push([geofenceCenter.latitude, geofenceCenter.longitude]);
+    }
+
     if (points.length === 1) {
       mapRef.current.setView(points[0], 13);
       return;
@@ -205,7 +244,7 @@ export function FamilyLiveMap({
         mapRef.current.fitBounds(bounds, { padding: [36, 36], maxZoom: 15 });
       }
     }
-  }, [leafletReady, locations, membersByEmail]);
+  }, [geofenceCenter, geofenceRadiusMeters, leafletReady, locations, membersByEmail]);
 
   useEffect(() => {
     return () => {
@@ -213,6 +252,8 @@ export function FamilyLiveMap({
         marker.remove();
       }
       markersRef.current = [];
+      geofenceCircleRef.current?.remove();
+      geofenceCircleRef.current = null;
 
       if (mapRef.current) {
         mapRef.current.remove();

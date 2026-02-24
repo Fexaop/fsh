@@ -27,9 +27,9 @@ export default function Home() {
           <Button
             size="sm"
             variant="secondary"
-            onClick={() => router.push("/profile")}
+            onClick={() => router.push("/setting")}
           >
-            Profile
+            Settings
           </Button>
         </div>
       </div>
@@ -97,7 +97,7 @@ export default function Home() {
           Built for Families
         </h2>
         <p className="text-lg text-neutral-400 leading-relaxed">
-          Whether you're coordinating pickups, checking that loved ones are
+          Whether you&apos;re coordinating pickups, checking that loved ones are
           safe, or simply staying connected throughout the day, this platform
           gives you a secure and private way to share location information.
           Your safety and privacy remain the top priority.

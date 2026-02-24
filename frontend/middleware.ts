@@ -9,7 +9,10 @@ export function middleware(request: NextRequest) {
   );
   const { pathname } = request.nextUrl;
 
-  if (pathname.startsWith("/dashboard") && !isAuthenticated) {
+  if (
+    (pathname.startsWith("/dashboard") || pathname === "/setting") &&
+    !isAuthenticated
+  ) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
@@ -21,5 +24,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login"],
+  matcher: ["/dashboard/:path*", "/setting", "/login"],
 };
